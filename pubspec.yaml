@@ -35,6 +35,10 @@ dependencies:
   # Sharing (viral growth — share report cards)
   share_plus: ^10.1.2
 
+  # Local notifications (retention — transaction alerts + weekly summary)
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../repositories/transaction_repository.dart';
 import '../services/app_prefs.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../services/sms_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
@@ -54,6 +55,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // that a previous build may have pulled in from before the user started.
       final cutoff = await AppPrefs.ensureSmsCutoff();
       await TransactionRepository.instance.removeSmsImportedBefore(cutoff);
+
+      // Enable the retention loop: notification permission + weekly summary.
+      await NotificationService.instance.requestPermission();
+      await NotificationService.instance.scheduleWeeklySummary(
+        'See how your spending went this week and where you can save.',
+      );
 
       final imported = await SmsService.instance.backfillInbox();
       SmsService.instance.startListening();
