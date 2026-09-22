@@ -12,6 +12,7 @@ import 'budgets_screen.dart';
 import 'insights_screen.dart';
 import 'paste_sms_screen.dart';
 import 'recurring_screen.dart';
+import 'share_report_screen.dart';
 
 /// Profile / settings. Central place to enable automatic SMS capture
 /// (the app's core), see how Spendly protects privacy, and log out.
@@ -206,6 +207,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: 'Add a transaction without SMS permission',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const PasteSmsScreen()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _NavCard(
+            icon: Icons.ios_share_rounded,
+            title: 'Share my report',
+            subtitle: 'Share a monthly money card with friends',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ShareReportScreen()),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
