@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../data/mock_data.dart';
+import '../services/auth_service.dart';
 import '../widgets/bottom_nav.dart';
 import 'add_transaction_screen.dart';
 import 'home_screen.dart';
@@ -19,11 +19,11 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _index = 0;
 
-  late final List<Widget> _tabs = const [
-    HomeScreen(userName: MockData.demoName),
-    StatisticsScreen(),
-    TransactionsScreen(),
-    ProfileScreen(),
+  late final List<Widget> _tabs = [
+    HomeScreen(userName: AuthService.instance.displayName),
+    const StatisticsScreen(),
+    const TransactionsScreen(),
+    const ProfileScreen(),
   ];
 
   void _openAdd() {
