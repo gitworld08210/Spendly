@@ -43,7 +43,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('SMS permission denied')),
+        const SnackBar(
+          content: Text(
+            'SMS permission denied. Enable it in Settings → Apps → Spendly '
+            '→ Permissions → SMS to auto-track spends.',
+          ),
+          duration: Duration(seconds: 5),
+        ),
       );
     }
     if (mounted) {
