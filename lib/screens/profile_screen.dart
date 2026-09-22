@@ -7,6 +7,8 @@ import '../services/sms_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import 'budgets_screen.dart';
+import 'insights_screen.dart';
+import 'paste_sms_screen.dart';
 import 'recurring_screen.dart';
 
 /// Profile / settings. Central place to enable automatic SMS capture
@@ -168,6 +170,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: AppSpacing.md),
           _NavCard(
+            icon: Icons.auto_awesome_rounded,
+            title: 'Insights',
+            subtitle: 'AI money coach — where you can save',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const InsightsScreen()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _NavCard(
             icon: Icons.pie_chart_outline_rounded,
             title: 'Budgets',
             subtitle: 'Set monthly limits and get overspend alerts',
@@ -182,6 +193,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: 'See subscriptions & bills Spendly detected',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const RecurringScreen()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _NavCard(
+            icon: Icons.content_paste_rounded,
+            title: 'Paste SMS',
+            subtitle: 'Add a transaction without SMS permission',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PasteSmsScreen()),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
