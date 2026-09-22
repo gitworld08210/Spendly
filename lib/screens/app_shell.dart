@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/streak_service.dart';
 import '../widgets/bottom_nav.dart';
 import 'add_transaction_screen.dart';
 import 'home_screen.dart';
@@ -25,6 +26,13 @@ class _AppShellState extends State<AppShell> {
     const TransactionsScreen(),
     const ProfileScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Count today's visit toward the engagement streak.
+    StreakService.instance.recordAppOpen();
+  }
 
   void _openAdd() {
     Navigator.of(context).push(
