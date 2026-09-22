@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../repositories/budget_repository.dart';
 import '../repositories/transaction_repository.dart';
+import '../services/insights_engine.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/budget_alert_banner.dart';
@@ -8,6 +10,7 @@ import '../widgets/summary_pills.dart';
 import '../widgets/transaction_tile.dart';
 import '../widgets/wallet_card.dart';
 import 'budgets_screen.dart';
+import 'insights_screen.dart';
 import 'transaction_detail_screen.dart';
 
 /// The main dashboard: greeting, wallet card, income/expense pills and a
@@ -50,6 +53,11 @@ class HomeScreen extends StatelessWidget {
               BudgetAlertBanner(
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const BudgetsScreen()),
+                ),
+              ),
+              _SmartTip(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const InsightsScreen()),
                 ),
               ),
               Row(
@@ -170,6 +178,84 @@ class _EmptyState extends StatelessWidget {
             style: TextStyle(color: AppColors.textSecondary),
           ),
         ],
+      ),
+    );
+  }
+}
+
+
+/// A compact "smart tip" card showing the single highest-priority insight,
+/// tapping through to the full Insights screen. Renders nothing when there's
+/// nothing worth surfacing.
+class _SmartTip extends StatelessWidget {
+  const _SmartTip({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final insights = InsightsEngine.analyze(
+      TransactionRepository.instance.all,
+      budgets: BudgetRepository.instance.all,
+    );
+    if (insights.isEmpty) return const SizedBox.shrink();
+    final top = insights.first;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md),
+      child: Material(
+        color: AppColors.ink,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSmall),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    gradient: AppColors.accentGradient,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.auto_awesome_rounded,
+                      color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Smart tip',
+                        style: TextStyle(
+                          color: AppColors.textOnDarkMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        top.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.textOnDark,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded,
+                    color: AppColors.textOnDarkMuted),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
