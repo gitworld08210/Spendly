@@ -6,6 +6,31 @@ class AppPrefs {
 
   static const _smsCutoffKey = 'sms_cutoff_millis';
   static const _onboardingSeenKey = 'onboarding_seen';
+  static const _referralCodeKey = 'referral_code';
+
+  /// Returns a stable, human-friendly referral code for this device/user,
+  /// generating and persisting one on first use (e.g. "SPND7K2Q").
+  static Future<String> referralCode([String? seed]) async {
+    final prefs = await SharedPreferences.getInstance();
+    final existing = prefs.getString(_referralCodeKey);
+    if (existing != null) return existing;
+
+    final basis = (seed ?? DateTime.now().microsecondsSinceEpoch.toString());
+    // Deterministic, ambiguous-char-free 4-char suffix.
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var hash = 0;
+    for (final code in basis.codeUnits) {
+      hash = (hash * 31 + code) & 0x7fffffff;
+    }
+    final buf = StringBuffer('SPND');
+    for (var i = 0; i < 4; i++) {
+      buf.write(alphabet[hash % alphabet.length]);
+      hash ~/= alphabet.length;
+    }
+    final code = buf.toString();
+    await prefs.setString(_referralCodeKey, code);
+    return code;
+  }
 
   /// Whether the user has already completed the one-time intro flow.
   static Future<bool> onboardingSeen() async {

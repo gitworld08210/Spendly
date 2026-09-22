@@ -12,6 +12,7 @@ import '../widgets/pro_lock.dart';
 import 'budgets_screen.dart';
 import 'insights_screen.dart';
 import 'paste_sms_screen.dart';
+import 'invite_screen.dart';
 import 'recurring_screen.dart';
 import 'share_report_screen.dart';
 
@@ -223,6 +224,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle: 'Share a monthly money card with friends',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ShareReportScreen()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _NavCard(
+            icon: Icons.group_add_rounded,
+            title: 'Invite friends',
+            subtitle: 'Share Spendly with your referral code',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const InviteScreen()),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
