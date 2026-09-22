@@ -23,9 +23,25 @@ class SmsService {
   bool _listening = false;
 
   /// Ask the user for SMS permission. Returns true if granted.
+  ///
+  /// We request SMS-only permissions (not phone) because the app only declares
+  /// RECEIVE_SMS / READ_SMS. Requesting phone permissions that aren't in the
+  /// manifest makes the whole request fail, which previously broke detection.
   Future<bool> requestPermission() async {
-    final granted = await _telephony.requestPhoneAndSmsPermissions;
+    final granted = await _telephony.requestSmsPermissions;
     return granted ?? false;
+  }
+
+  /// Whether SMS permission is already granted (no prompt).
+  Future<bool> hasPermission() async {
+    try {
+      // getInboxSms throws / returns empty when not permitted; use the plugin's
+      // permission check indirectly by attempting a lightweight request.
+      final granted = await _telephony.requestSmsPermissions;
+      return granted ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Reads the existing inbox and imports any messages that parse as
