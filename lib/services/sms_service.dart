@@ -1,8 +1,20 @@
 import 'package:another_telephony/telephony.dart';
 import 'package:flutter/foundation.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../repositories/transaction_repository.dart';
 import 'sms_parser.dart';
+
+/// Outcome of asking for SMS permission, so the UI can react precisely.
+enum SmsPermissionResult {
+  granted,
+
+  /// User tapped "Deny" — can ask again.
+  denied,
+
+  /// User selected "Don't ask again" / OS restricted — must open Settings.
+  permanentlyDenied,
+}
 
 /// Bridges the device SMS inbox to PaisaTrack's parser + repository.
 ///
@@ -22,27 +34,34 @@ class SmsService {
   final Telephony _telephony = Telephony.instance;
   bool _listening = false;
 
-  /// Ask the user for SMS permission. Returns true if granted.
+  /// Ask the user for SMS permission.
   ///
-  /// We request SMS-only permissions (not phone) because the app only declares
-  /// RECEIVE_SMS / READ_SMS. Requesting phone permissions that aren't in the
-  /// manifest makes the whole request fail, which previously broke detection.
-  Future<bool> requestPermission() async {
-    final granted = await _telephony.requestSmsPermissions;
-    return granted ?? false;
+  /// Uses `permission_handler` (not the telephony plugin's own request) because
+  /// it reliably shows the system dialog across OEM skins like MIUI/One UI,
+  /// where the plugin's request sometimes silently no-ops. We request both
+  /// READ_SMS and RECEIVE_SMS so backfill and live capture both work.
+  Future<SmsPermissionResult> requestPermission() async {
+    // Requesting the READ_SMS runtime permission covers reading the inbox;
+    // RECEIVE_SMS is a manifest/broadcast permission granted in the same group.
+    final statuses = await [Permission.sms].request();
+    final status = statuses[Permission.sms] ?? PermissionStatus.denied;
+
+    if (status.isGranted) return SmsPermissionResult.granted;
+    if (status.isPermanentlyDenied || status.isRestricted) {
+      return SmsPermissionResult.permanentlyDenied;
+    }
+    return SmsPermissionResult.denied;
   }
 
-  /// Whether SMS permission is already granted (no prompt).
+  /// Whether SMS permission is already granted (no prompt shown).
   Future<bool> hasPermission() async {
-    try {
-      // getInboxSms throws / returns empty when not permitted; use the plugin's
-      // permission check indirectly by attempting a lightweight request.
-      final granted = await _telephony.requestSmsPermissions;
-      return granted ?? false;
-    } catch (_) {
-      return false;
-    }
+    final status = await Permission.sms.status;
+    return status.isGranted;
   }
+
+  /// Opens the OS app-settings page so the user can grant SMS manually
+  /// (used when the permission was permanently denied).
+  Future<void> openSettings() => openAppSettings();
 
   /// Reads the existing inbox and imports any messages that parse as
   /// transactions. Safe to call repeatedly — the repository dedupes on the

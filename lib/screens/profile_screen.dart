@@ -20,14 +20,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _autoCapture = false;
   bool _busy = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _syncPermissionState();
+  }
+
+  Future<void> _syncPermissionState() async {
+    final has = await SmsService.instance.hasPermission();
+    if (has && mounted) {
+      SmsService.instance.startListening();
+      setState(() => _autoCapture = true);
+    }
+  }
+
   Future<void> _toggleAutoCapture(bool value) async {
     if (!value) {
       setState(() => _autoCapture = false);
       return;
     }
     setState(() => _busy = true);
-    final granted = await SmsService.instance.requestPermission();
-    if (granted) {
+    final result = await SmsService.instance.requestPermission();
+
+    if (result == SmsPermissionResult.granted) {
       final imported = await SmsService.instance.backfillInbox();
       SmsService.instance.startListening();
       if (mounted) {
@@ -41,20 +56,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         );
       }
+    } else if (result == SmsPermissionResult.permanentlyDenied) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'SMS permission is blocked. Open Settings to allow it.',
+            ),
+            duration: const Duration(seconds: 6),
+            action: SnackBarAction(
+              label: 'Open Settings',
+              onPressed: () => SmsService.instance.openSettings(),
+            ),
+          ),
+        );
+      }
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'SMS permission denied. Enable it in Settings → Apps → Spendly '
-            '→ Permissions → SMS to auto-track spends.',
-          ),
-          duration: Duration(seconds: 5),
+          content: Text('SMS permission denied. Tap the toggle to try again.'),
+          duration: Duration(seconds: 4),
         ),
       );
     }
+
     if (mounted) {
       setState(() {
-        _autoCapture = granted;
+        _autoCapture = result == SmsPermissionResult.granted;
         _busy = false;
       });
     }
