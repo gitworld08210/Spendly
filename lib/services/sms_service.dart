@@ -4,6 +4,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../repositories/transaction_repository.dart';
 import 'app_prefs.dart';
+import 'notification_service.dart';
 import 'sms_parser.dart';
 
 /// Outcome of asking for SMS permission, so the UI can react precisely.
@@ -121,7 +122,10 @@ class SmsService {
     await AppPrefs.ensureSmsCutoff();
     final txn = SmsParser.toTransaction(body);
     if (txn == null) return;
-    // Fire-and-forget; repository handles dedupe + persistence.
-    TransactionRepository.instance.addFromSms(txn);
+    // Repository handles dedupe + persistence; notify only if newly added.
+    final added = await TransactionRepository.instance.addFromSms(txn);
+    if (added) {
+      await NotificationService.instance.showTransactionAlert(txn);
+    }
   }
 }
