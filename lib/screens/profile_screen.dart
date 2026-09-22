@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../repositories/transaction_repository.dart';
+import '../services/app_prefs.dart';
 import '../services/auth_service.dart';
 import '../services/sms_service.dart';
 import '../theme/app_colors.dart';
@@ -43,6 +45,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final result = await SmsService.instance.requestPermission();
 
     if (result == SmsPermissionResult.granted) {
+      // Establish the cutoff (today) and clean up any older SMS transactions
+      // that a previous build may have pulled in from before the user started.
+      final cutoff = await AppPrefs.ensureSmsCutoff();
+      await TransactionRepository.instance.removeSmsImportedBefore(cutoff);
+
       final imported = await SmsService.instance.backfillInbox();
       SmsService.instance.startListening();
       if (mounted) {

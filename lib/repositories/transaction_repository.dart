@@ -166,6 +166,33 @@ class TransactionRepository extends ChangeNotifier {
     }
   }
 
+  /// Removes SMS-imported transactions dated before [cutoff]. Used to clean up
+  /// old inbox messages that were pulled in before the install-date cutoff
+  /// existed. Returns how many were removed.
+  Future<int> removeSmsImportedBefore(DateTime cutoff) async {
+    final toRemove = _items
+        .where((t) => t.source == TxnSource.sms && t.date.isBefore(cutoff))
+        .map((t) => t.id)
+        .toList();
+    if (toRemove.isEmpty) return 0;
+
+    _items = _items.where((t) => !toRemove.contains(t.id)).toList();
+    notifyListeners();
+
+    final client = _client;
+    if (client != null && _hasSession) {
+      try {
+        await client
+            .from('transactions')
+            .delete()
+            .inFilter('id', toRemove);
+      } catch (e) {
+        debugPrint('TransactionRepository.removeSmsImportedBefore failed: $e');
+      }
+    }
+    return toRemove.length;
+  }
+
   // --- Supabase hydration ---------------------------------------------------
 
   /// Loads the signed-in user's rows into the cache. A new user with no rows

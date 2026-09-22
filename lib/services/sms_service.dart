@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../repositories/transaction_repository.dart';
+import 'app_prefs.dart';
 import 'sms_parser.dart';
 
 /// Outcome of asking for SMS permission, so the UI can react precisely.
@@ -63,12 +64,16 @@ class SmsService {
   /// (used when the permission was permanently denied).
   Future<void> openSettings() => openAppSettings();
 
-  /// Reads the existing inbox and imports any messages that parse as
-  /// transactions. Safe to call repeatedly — the repository dedupes on the
-  /// raw SMS body. Returns the number of new transactions imported.
+  /// Reads the inbox and imports messages that parse as transactions —
+  /// **only those received at or after the cutoff** (when the user first
+  /// enabled capture), so pre-existing/old bank SMS are never pulled in.
+  ///
+  /// Safe to call repeatedly — the repository dedupes on the raw SMS body.
+  /// Returns the number of new transactions imported.
   Future<int> backfillInbox({int maxMessages = 500}) async {
     var imported = 0;
     try {
+      final cutoff = await AppPrefs.ensureSmsCutoff();
       final messages = await _telephony.getInboxSms(
         columns: [SmsColumn.ADDRESS, SmsColumn.BODY, SmsColumn.DATE],
       );
@@ -79,6 +84,8 @@ class SmsService {
         final received = sms.date != null
             ? DateTime.fromMillisecondsSinceEpoch(sms.date!)
             : DateTime.now();
+        // Skip anything from before the user started using Spendly.
+        if (received.isBefore(cutoff)) continue;
         final txn = SmsParser.toTransaction(body, receivedAt: received);
         if (txn == null) continue;
         final added = await TransactionRepository.instance.addFromSms(txn);
@@ -106,9 +113,12 @@ class SmsService {
     }
   }
 
-  void _handleIncoming(SmsMessage message) {
+  Future<void> _handleIncoming(SmsMessage message) async {
     final body = message.body;
     if (body == null || body.isEmpty) return;
+    // Incoming messages arrive "now", which is always at/after the cutoff, but
+    // establish the cutoff if capture was enabled without a backfill first.
+    await AppPrefs.ensureSmsCutoff();
     final txn = SmsParser.toTransaction(body);
     if (txn == null) return;
     // Fire-and-forget; repository handles dedupe + persistence.
