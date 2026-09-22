@@ -6,6 +6,7 @@ import '../services/insights_engine.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/budget_alert_banner.dart';
+import '../widgets/streak_chip.dart';
 import '../widgets/summary_pills.dart';
 import '../widgets/transaction_tile.dart';
 import '../widgets/wallet_card.dart';
@@ -143,6 +144,8 @@ class _Header extends StatelessWidget {
           ],
         ),
         const Spacer(),
+        const StreakChip(),
+        const SizedBox(width: 10),
         Container(
           width: 44,
           height: 44,
