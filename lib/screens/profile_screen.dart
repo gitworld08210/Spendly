@@ -336,8 +336,31 @@ class _ProCard extends StatelessWidget {
     return AnimatedBuilder(
       animation: ProService.instance,
       builder: (context, _) {
-        final isPro = ProService.instance.isPro;
-        if (isPro) {
+        // During the free-launch phase everything is unlocked, so we show a
+        // friendly "all features free" banner instead of an upsell.
+        if (ProService.instance.isPro && !ProService.instance.isPaidPro) {
+          return Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              gradient: AppColors.accentGradient,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+            ),
+            child: Row(
+              children: const [
+                Icon(Icons.celebration_rounded, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'All features unlocked — free while we grow 🚀',
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        if (ProService.instance.isPaidPro) {
           return Container(
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(

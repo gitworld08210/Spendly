@@ -28,8 +28,21 @@ class ProService extends ChangeNotifier {
 
   static const _proKey = 'is_pro';
 
+  /// Growth phase: everything is free for everyone. While this is true, [isPro]
+  /// always reports true so no feature is gated — the paywall/entitlement code
+  /// stays in place and ready, but nothing blocks users. Flip to false when we
+  /// decide to actually charge.
+  static const bool _launchAllFree = true;
+
   bool _isPro = false;
-  bool get isPro => _isPro;
+
+  /// Whether the user has full (Pro) access. During the free-launch phase this
+  /// is always true.
+  bool get isPro => _launchAllFree || _isPro;
+
+  /// The real, paid entitlement (ignores the free-launch override) — used by
+  /// the paywall so it can still show "upgrade" state during testing if needed.
+  bool get isPaidPro => _isPro;
 
   SupabaseClient? get _client {
     if (!SupabaseConfig.isConfigured) return null;
