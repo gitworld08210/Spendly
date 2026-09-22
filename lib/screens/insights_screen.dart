@@ -5,9 +5,11 @@ import '../models/insight.dart';
 import '../repositories/budget_repository.dart';
 import '../repositories/transaction_repository.dart';
 import '../services/insights_engine.dart';
+import '../services/pro_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import '../widgets/pro_lock.dart';
 
 /// The "AI Money Coach" screen: analyzes the user's spending and shows
 /// personalized, actionable insights — savings opportunities, trends,
@@ -23,7 +25,7 @@ class InsightsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Insights')),
       body: AnimatedBuilder(
-        animation: Listenable.merge([txns, budgets]),
+        animation: Listenable.merge([txns, budgets, ProService.instance]),
         builder: (context, _) {
           final insights =
               InsightsEngine.analyze(txns.all, budgets: budgets.all);
@@ -34,16 +36,27 @@ class InsightsScreen extends StatelessWidget {
             return const _Empty();
           }
 
+          final isPro = ProService.instance.isPro;
+          // Free users see the top insight; the rest is Pro.
+          const freeCount = 1;
+          final visible = isPro ? insights : insights.take(freeCount).toList();
+          final lockedCount = insights.length - visible.length;
+
           return ListView(
             padding: const EdgeInsets.fromLTRB(
                 AppSpacing.lg, AppSpacing.md, AppSpacing.lg, 40),
             children: [
               if (totalSaving > 0) _SavingsHeadline(amount: totalSaving),
               const SizedBox(height: AppSpacing.md),
-              ...insights.map((i) => Padding(
+              ...visible.map((i) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _InsightCard(insight: i),
                   )),
+              if (lockedCount > 0)
+                _LockedInsights(
+                  count: lockedCount,
+                  onUpgrade: () => showPaywall(context),
+                ),
             ],
           );
         },
@@ -228,6 +241,56 @@ class _InsightCard extends StatelessWidget {
                 ],
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Teaser card shown to free users for the remaining, Pro-only insights.
+class _LockedInsights extends StatelessWidget {
+  const _LockedInsights({required this.count, required this.onUpgrade});
+
+  final int count;
+  final VoidCallback onUpgrade;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.lock_rounded,
+              color: AppColors.accentRed, size: 30),
+          const SizedBox(height: 10),
+          Text(
+            '$count more insight${count == 1 ? '' : 's'} with Pro',
+            style:
+                const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Unlock every savings tip, trend and subscription alert.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: onUpgrade,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.ink,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+              ),
+            ),
+            child: const Text('Upgrade to Pro'),
           ),
         ],
       ),

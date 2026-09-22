@@ -6,6 +6,8 @@ import '../services/auth_service.dart';
 import '../services/sms_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../services/pro_service.dart';
+import '../widgets/pro_lock.dart';
 import 'budgets_screen.dart';
 import 'insights_screen.dart';
 import 'paste_sms_screen.dart';
@@ -139,7 +141,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
+          _ProCard(),
+          const SizedBox(height: AppSpacing.md),
           Container(
             decoration: BoxDecoration(
               color: AppColors.surface,
@@ -320,6 +324,109 @@ class _NavCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+
+/// Shows either an "Upgrade to Pro" banner or a "Pro member" badge.
+class _ProCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: ProService.instance,
+      builder: (context, _) {
+        // During the free-launch phase everything is unlocked, so we show a
+        // friendly "all features free" banner instead of an upsell.
+        if (ProService.instance.isPro && !ProService.instance.isPaidPro) {
+          return Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              gradient: AppColors.accentGradient,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+            ),
+            child: Row(
+              children: const [
+                Icon(Icons.celebration_rounded, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'All features unlocked — free while we grow 🚀',
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        if (ProService.instance.isPaidPro) {
+          return Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              gradient: AppColors.accentGradient,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+            ),
+            child: Row(
+              children: const [
+                Icon(Icons.workspace_premium_rounded, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    "You're a Spendly Pro member 🎉",
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return Material(
+          color: AppColors.ink,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+          child: InkWell(
+            onTap: () => showPaywall(context),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: AppColors.accentGradient,
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: const Icon(Icons.workspace_premium_rounded,
+                        color: Colors.white),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Upgrade to Spendly Pro',
+                            style: TextStyle(
+                                color: AppColors.textOnDark,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15)),
+                        Text('Unlimited insights, reports & more',
+                            style: TextStyle(
+                                color: AppColors.textOnDarkMuted,
+                                fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded,
+                      color: AppColors.textOnDarkMuted),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
