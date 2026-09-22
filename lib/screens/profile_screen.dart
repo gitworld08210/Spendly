@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../data/mock_data.dart';
+import '../services/auth_service.dart';
 import '../services/sms_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 
 /// Profile / settings. Central place to enable automatic SMS capture
-/// (the app's core), and see how PaisaTrack protects privacy.
+/// (the app's core), see how Spendly protects privacy, and log out.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -74,19 +74,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Icon(Icons.person, color: Colors.white, size: 30),
               ),
               const SizedBox(width: AppSpacing.md),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    MockData.demoName,
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.w800),
-                  ),
-                  const Text(
-                    'PaisaTrack account',
-                    style: TextStyle(color: AppColors.textSecondary),
-                  ),
-                ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AuthService.instance.displayName,
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      AuthService.instance.currentUser?.email ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -144,6 +148,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          OutlinedButton.icon(
+            onPressed: () => AuthService.instance.signOut(),
+            icon: const Icon(Icons.logout_rounded, color: AppColors.accentRed),
+            label: const Text(
+              'Log out',
+              style: TextStyle(
+                color: AppColors.accentRed,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+              side: const BorderSide(color: AppColors.accentRed),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+              ),
             ),
           ),
         ],

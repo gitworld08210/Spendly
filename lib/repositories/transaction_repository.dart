@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../data/mock_data.dart';
 import '../models/category.dart';
 import '../models/transaction.dart';
 import '../services/supabase_config.dart';
@@ -32,14 +31,27 @@ class PeriodSummary {
 
 /// Single source of truth for transactions.
 ///
-/// Follows the app's convention: a ChangeNotifier singleton holding an
-/// in-memory cache seeded from [MockData] and hydrated fire-and-forget from
-/// Supabase. Every getter is synchronous so the UI can read instantly; when
-/// there's no session or the network fails, it simply stays on mock data.
+/// A ChangeNotifier singleton holding an in-memory cache backed by Supabase.
+/// Real, per-user data is loaded after login; a brand-new user simply starts
+/// with an empty list. The cache reloads automatically whenever auth state
+/// changes (login / logout). Every getter is synchronous so the UI reads
+/// instantly.
 class TransactionRepository extends ChangeNotifier {
   TransactionRepository._() {
-    _items = MockData.transactions();
-    _sort();
+    // Reload the cache on every auth change (sign-in loads the user's data,
+    // sign-out clears it). Wrapped in try/catch so the singleton is safe to
+    // construct in unit tests where Supabase hasn't been initialized.
+    try {
+      if (SupabaseConfig.isConfigured) {
+        Supabase.instance.client.auth.onAuthStateChange.listen((_) {
+          _hydrated = false;
+          _items = const [];
+          hydrate();
+        });
+      }
+    } catch (_) {
+      // Supabase not initialized (e.g. tests) — cache stays empty until used.
+    }
     hydrate();
   }
 
@@ -54,11 +66,17 @@ class TransactionRepository extends ChangeNotifier {
   /// The most recent [count] transactions.
   List<Transaction> recent([int count = 5]) => _items.take(count).toList();
 
-  double get balance =>
-      _items.fold(0.0, (sum, t) => sum + t.signedAmount) + MockData.demoBalance;
+  /// Net balance = sum of all credits minus debits for this user.
+  double get balance => _items.fold(0.0, (sum, t) => sum + t.signedAmount);
 
-  SupabaseClient? get _client =>
-      SupabaseConfig.isConfigured ? Supabase.instance.client : null;
+  SupabaseClient? get _client {
+    if (!SupabaseConfig.isConfigured) return null;
+    try {
+      return Supabase.instance.client;
+    } catch (_) {
+      return null; // Not initialized (e.g. unit tests).
+    }
+  }
 
   bool get _hasSession => _client?.auth.currentUser != null;
 
@@ -150,8 +168,9 @@ class TransactionRepository extends ChangeNotifier {
 
   // --- Supabase hydration ---------------------------------------------------
 
-  /// Loads server rows into the cache. Guarded: silently no-ops when there's
-  /// no config/session or on any error, keeping the app usable offline.
+  /// Loads the signed-in user's rows into the cache. A new user with no rows
+  /// simply ends up with an empty list (the UI shows an empty state). No-ops
+  /// when there's no session.
   Future<void> hydrate() async {
     if (_hydrated) return;
     final client = _client;
@@ -161,15 +180,12 @@ class TransactionRepository extends ChangeNotifier {
           .from('transactions')
           .select()
           .order('date', ascending: false);
-      final fetched = (rows as List)
+      _items = (rows as List)
           .map((r) => Transaction.fromJson(r as Map<String, dynamic>))
           .toList();
-      if (fetched.isNotEmpty) {
-        _items = fetched;
-        _sort();
-        _hydrated = true;
-        notifyListeners();
-      }
+      _sort();
+      _hydrated = true;
+      notifyListeners();
     } catch (e) {
       debugPrint('TransactionRepository.hydrate failed: $e');
     }

@@ -157,7 +157,7 @@ class _EmptyState extends StatelessWidget {
           Icon(Icons.sms_outlined, size: 40, color: AppColors.textSecondary),
           SizedBox(height: 12),
           Text(
-            'No transactions yet.\nGrant SMS access and PaisaTrack will '
+            'No transactions yet.\nGrant SMS access and Spendly will '
             'add them automatically.',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.textSecondary),
