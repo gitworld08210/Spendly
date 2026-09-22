@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../repositories/transaction_repository.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import '../widgets/budget_alert_banner.dart';
 import '../widgets/summary_pills.dart';
 import '../widgets/transaction_tile.dart';
 import '../widgets/wallet_card.dart';
+import 'budgets_screen.dart';
 import 'transaction_detail_screen.dart';
 
 /// The main dashboard: greeting, wallet card, income/expense pills and a
@@ -45,6 +47,11 @@ class HomeScreen extends StatelessWidget {
                 expensePercent: summary.expensePercent,
               ),
               const SizedBox(height: AppSpacing.lg),
+              BudgetAlertBanner(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const BudgetsScreen()),
+                ),
+              ),
               Row(
                 children: [
                   const Text(

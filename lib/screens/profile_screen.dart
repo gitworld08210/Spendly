@@ -4,6 +4,8 @@ import '../services/auth_service.dart';
 import '../services/sms_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
+import 'budgets_screen.dart';
+import 'recurring_screen.dart';
 
 /// Profile / settings. Central place to enable automatic SMS capture
 /// (the app's core), see how Spendly protects privacy, and log out.
@@ -124,6 +126,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
+          _NavCard(
+            icon: Icons.pie_chart_outline_rounded,
+            title: 'Budgets',
+            subtitle: 'Set monthly limits and get overspend alerts',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const BudgetsScreen()),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _NavCard(
+            icon: Icons.autorenew_rounded,
+            title: 'Recurring payments',
+            subtitle: 'See subscriptions & bills Spendly detected',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RecurringScreen()),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
@@ -170,6 +190,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A tappable settings row leading to another screen.
+class _NavCard extends StatelessWidget {
+  const _NavCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+            boxShadow: AppTheme.cardShadow,
+          ),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.accentRed.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(icon, color: AppColors.accentRed),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 15),
+                    ),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                          color: AppColors.textSecondary, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded,
+                  color: AppColors.textSecondary),
+            ],
+          ),
+        ),
       ),
     );
   }
