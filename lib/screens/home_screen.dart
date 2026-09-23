@@ -6,12 +6,14 @@ import '../services/insights_engine.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_theme.dart';
 import '../widgets/budget_alert_banner.dart';
+import '../widgets/guard_banner.dart';
 import '../widgets/streak_chip.dart';
 import '../widgets/summary_pills.dart';
 import '../widgets/transaction_tile.dart';
 import '../widgets/wallet_card.dart';
 import 'budgets_screen.dart';
 import 'insights_screen.dart';
+import 'paisa_guard_screen.dart';
 import 'transaction_detail_screen.dart';
 
 /// The main dashboard: greeting, wallet card, income/expense pills and a
@@ -59,6 +61,11 @@ class HomeScreen extends StatelessWidget {
               _SmartTip(
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const InsightsScreen()),
+                ),
+              ),
+              GuardBanner(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PaisaGuardScreen()),
                 ),
               ),
               Row(

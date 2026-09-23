@@ -11,6 +11,7 @@ import '../services/pro_service.dart';
 import '../widgets/pro_lock.dart';
 import 'budgets_screen.dart';
 import 'insights_screen.dart';
+import 'paisa_guard_screen.dart';
 import 'paste_sms_screen.dart';
 import 'invite_screen.dart';
 import 'recurring_screen.dart';
@@ -182,6 +183,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
+          _NavCard(
+            icon: Icons.shield_rounded,
+            title: 'Paisa Guard',
+            subtitle: 'Catch double charges, fees & fraud',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PaisaGuardScreen()),
+            ),
+          ),
+          const SizedBox(height: 10),
           _NavCard(
             icon: Icons.auto_awesome_rounded,
             title: 'Insights',
