@@ -1,18 +1,17 @@
 // Spendly — ai-insights
 //
 // Turns a compact spending summary into short, natural-language money tips
-// using an Azure-hosted LLM. Model-agnostic: works with Azure OpenAI
-// (…openai.azure.com) and Azure AI Foundry (…services.ai.azure.com) since both
-// expose an OpenAI-compatible /chat/completions API.
-//
-// The API key never leaves the server. The client sends only aggregated,
-// non-identifying figures (category totals) — never raw transactions or SMS.
+// using an Azure-hosted LLM. Supports classic Azure OpenAI and Azure AI
+// Foundry v1 endpoints. The API key never leaves the server; the client sends
+// only aggregated, non-identifying figures.
 //
 // Secrets:
-//   AZURE_AI_ENDPOINT    e.g. https://my-res.openai.azure.com  (no trailing /)
+//   AZURE_AI_ENDPOINT    e.g.
+//     https://<res>.openai.azure.com
+//     https://<res>.services.ai.azure.com/api/projects/<proj>/openai/v1/responses
 //   AZURE_AI_API_KEY     the key
-//   AZURE_AI_DEPLOYMENT  deployment/model name (e.g. gpt-4o-mini, DeepSeek-R1)
-//   AZURE_AI_API_VERSION optional (default 2024-08-01-preview; Azure OpenAI only)
+//   AZURE_AI_DEPLOYMENT  deployment/model name (e.g. gpt-5-mini)
+//   AZURE_AI_API_VERSION optional (Azure OpenAI only; default 2024-08-01-preview)
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
@@ -30,39 +29,45 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-interface CategoryTotal {
-  category: string;
-  thisMonth: number;
-  avg3Month: number;
-}
-
-interface RequestBody {
-  currency?: string;
-  income?: number;
-  expense?: number;
-  categories?: CategoryTotal[];
-  subscriptions?: { name: string; amount: number }[];
-}
-
+/// Builds the chat/completions URL + auth style from the configured endpoint.
 function buildChatUrl(): { url: string; useApiKeyHeader: boolean } {
-  const endpoint = (Deno.env.get("AZURE_AI_ENDPOINT") ?? "").replace(/\/+$/, "");
+  let endpoint = (Deno.env.get("AZURE_AI_ENDPOINT") ?? "").trim();
   const deployment = Deno.env.get("AZURE_AI_DEPLOYMENT") ?? "";
   const apiVersion =
     Deno.env.get("AZURE_AI_API_VERSION") ?? "2024-08-01-preview";
 
+  // Classic Azure OpenAI resource.
   if (endpoint.includes("openai.azure.com")) {
-    // Azure OpenAI style.
+    endpoint = endpoint.replace(/\/+$/, "");
     return {
       url:
         `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`,
-      useApiKeyHeader: true, // uses "api-key" header
+      useApiKeyHeader: true,
     };
   }
-  // Azure AI Foundry / OpenAI-compatible style.
-  return {
-    url: `${endpoint}/chat/completions`,
-    useApiKeyHeader: false, // uses "Authorization: Bearer"
-  };
+
+  // Azure AI Foundry v1. The endpoint may be a full path ending in
+  // ".../openai/v1/responses" (or "/chat/completions"); normalize to the
+  // OpenAI-compatible ".../openai/v1/chat/completions".
+  const v1Marker = "/openai/v1";
+  const idx = endpoint.indexOf(v1Marker);
+  if (idx !== -1) {
+    endpoint = endpoint.substring(0, idx + v1Marker.length);
+    return { url: `${endpoint}/chat/completions`, useApiKeyHeader: false };
+  }
+
+  // Foundry base without the /openai/v1 suffix.
+  if (endpoint.includes("services.ai.azure.com")) {
+    endpoint = endpoint.replace(/\/+$/, "");
+    return {
+      url: `${endpoint}/openai/v1/chat/completions`,
+      useApiKeyHeader: false,
+    };
+  }
+
+  // Generic OpenAI-compatible fallback.
+  endpoint = endpoint.replace(/\/+$/, "");
+  return { url: `${endpoint}/chat/completions`, useApiKeyHeader: false };
 }
 
 function systemPrompt(currency: string): string {
@@ -72,8 +77,8 @@ function systemPrompt(currency: string): string {
     "Given a monthly spending summary, return 3-5 short, specific, actionable",
     "tips to save money. Be encouraging, concrete, and reference the actual",
     "categories/numbers. Avoid generic advice. Keep each tip to one sentence.",
-    "Return STRICT JSON: {\"tips\":[{\"title\":string,\"detail\":string,",
-    "\"category\":string|null,\"potentialSaving\":number}]}. No prose outside JSON.",
+    'Return STRICT JSON: {"tips":[{"title":string,"detail":string,' +
+    '"category":string|null,"potentialSaving":number}]}. No prose outside JSON.',
   ].join(" ");
 }
 
@@ -89,9 +94,8 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const body = (await req.json().catch(() => ({}))) as RequestBody;
+    const body = await req.json().catch(() => ({}));
     const currency = body.currency ?? "INR";
-
     const summary = {
       income: body.income ?? 0,
       expense: body.expense ?? 0,
@@ -109,13 +113,13 @@ Deno.serve(async (req: Request) => {
       headers["Authorization"] = `Bearer ${apiKey}`;
     }
 
+    // Note: some newer models only allow the default temperature, so we omit it.
     const payload = {
       model: deployment,
       messages: [
         { role: "system", content: systemPrompt(currency) },
         { role: "user", content: JSON.stringify(summary) },
       ],
-      temperature: 0.4,
       response_format: { type: "json_object" },
     };
 
@@ -127,8 +131,11 @@ Deno.serve(async (req: Request) => {
 
     if (!res.ok) {
       const detail = await res.text().catch(() => "");
-      console.error("AI upstream error:", res.status, detail.slice(0, 300));
-      return json({ error: "AI request failed", status: res.status }, 502);
+      console.error("AI upstream error:", res.status, url, detail.slice(0, 400));
+      return json(
+        { error: "AI request failed", status: res.status, url, detail: detail.slice(0, 400) },
+        502,
+      );
     }
 
     const data = await res.json();
