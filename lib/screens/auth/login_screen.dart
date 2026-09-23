@@ -5,6 +5,7 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/auth_widgets.dart';
 import '../../widgets/brand_header.dart';
+import 'forgot_password_screen.dart';
 import 'signup_screen.dart';
 
 /// Email + password login. No OTP here — OTP is only used at signup.
@@ -100,7 +101,29 @@ class _LoginScreenState extends State<LoginScreen> {
                         ? 'Password must be 6+ characters'
                         : null,
                   ),
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.sm),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: _loading
+                          ? null
+                          : () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const ForgotPasswordScreen(),
+                                ),
+                              ),
+                      child: const Text(
+                        'Forgot password?',
+                        style: TextStyle(
+                          color: AppColors.accentRed,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
                   PrimaryButton(
                     label: 'Log in',
                     loading: _loading,

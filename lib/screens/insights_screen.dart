@@ -4,6 +4,7 @@ import '../models/category.dart';
 import '../models/insight.dart';
 import '../repositories/budget_repository.dart';
 import '../repositories/transaction_repository.dart';
+import '../services/ai_insights_service.dart';
 import '../services/insights_engine.dart';
 import '../services/pro_service.dart';
 import '../theme/app_colors.dart';
@@ -12,10 +13,34 @@ import '../utils/formatters.dart';
 import '../widgets/pro_lock.dart';
 
 /// The "AI Money Coach" screen: analyzes the user's spending and shows
-/// personalized, actionable insights — savings opportunities, trends,
-/// subscription audit, projections and a spending personality.
-class InsightsScreen extends StatelessWidget {
+/// personalized, actionable insights — rule-based signals plus, when the AI is
+/// configured, natural-language tips from the coach.
+class InsightsScreen extends StatefulWidget {
   const InsightsScreen({super.key});
+
+  @override
+  State<InsightsScreen> createState() => _InsightsScreenState();
+}
+
+class _InsightsScreenState extends State<InsightsScreen> {
+  List<AiTip>? _aiTips;
+  bool _aiLoading = false;
+  bool _aiRequested = false;
+
+  Future<void> _askCoach() async {
+    setState(() {
+      _aiLoading = true;
+      _aiRequested = true;
+    });
+    final tips = await AiInsightsService.instance
+        .generate(TransactionRepository.instance.all);
+    if (mounted) {
+      setState(() {
+        _aiTips = tips;
+        _aiLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,15 +54,13 @@ class InsightsScreen extends StatelessWidget {
         builder: (context, _) {
           final insights =
               InsightsEngine.analyze(txns.all, budgets: budgets.all);
-          final totalSaving =
-              InsightsEngine.totalPotentialSaving(insights);
+          final totalSaving = InsightsEngine.totalPotentialSaving(insights);
 
           if (insights.isEmpty) {
             return const _Empty();
           }
 
           final isPro = ProService.instance.isPro;
-          // Free users see the top insight; the rest is Pro.
           const freeCount = 1;
           final visible = isPro ? insights : insights.take(freeCount).toList();
           final lockedCount = insights.length - visible.length;
@@ -48,6 +71,12 @@ class InsightsScreen extends StatelessWidget {
             children: [
               if (totalSaving > 0) _SavingsHeadline(amount: totalSaving),
               const SizedBox(height: AppSpacing.md),
+              _AiCoachSection(
+                loading: _aiLoading,
+                requested: _aiRequested,
+                tips: _aiTips,
+                onAsk: _askCoach,
+              ),
               ...visible.map((i) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _InsightCard(insight: i),
@@ -60,6 +89,138 @@ class InsightsScreen extends StatelessWidget {
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+/// The AI coach block: a prompt button that, on tap, fetches natural-language
+/// tips from the ai-insights function and renders them.
+class _AiCoachSection extends StatelessWidget {
+  const _AiCoachSection({
+    required this.loading,
+    required this.requested,
+    required this.tips,
+    required this.onAsk,
+  });
+
+  final bool loading;
+  final bool requested;
+  final List<AiTip>? tips;
+  final VoidCallback onAsk;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.ink,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusCard),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  gradient: AppColors.accentGradient,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.auto_awesome_rounded,
+                    color: Colors.white, size: 18),
+              ),
+              const SizedBox(width: 10),
+              const Text('Ask the AI coach',
+                  style: TextStyle(
+                      color: AppColors.textOnDark,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (!requested)
+            const Text(
+              'Get smart, personalized savings tips based on your spending.',
+              style: TextStyle(color: AppColors.textOnDarkMuted, fontSize: 13),
+            ),
+          if (loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2.2, color: Colors.white),
+                  ),
+                  SizedBox(width: 10),
+                  Text('Analyzing your spending…',
+                      style: TextStyle(color: AppColors.textOnDarkMuted)),
+                ],
+              ),
+            ),
+          if (!loading && tips != null && tips!.isEmpty && requested)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'AI coaching isn\'t available yet. Your rule-based insights are '
+                'below.',
+                style: TextStyle(color: AppColors.textOnDarkMuted, fontSize: 13),
+              ),
+            ),
+          if (!loading && tips != null && tips!.isNotEmpty)
+            ...tips!.map((t) => Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('💡', style: TextStyle(fontSize: 15)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(t.title,
+                                style: const TextStyle(
+                                    color: AppColors.textOnDark,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14)),
+                            if (t.detail.isNotEmpty)
+                              Text(t.detail,
+                                  style: const TextStyle(
+                                      color: AppColors.textOnDarkMuted,
+                                      fontSize: 13,
+                                      height: 1.4)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+          if (!loading) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: onAsk,
+                icon: const Icon(Icons.auto_awesome_rounded, size: 18),
+                label: Text(requested ? 'Refresh tips' : 'Get AI tips'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white24),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusPill),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
