@@ -107,6 +107,56 @@ class AuthService extends ChangeNotifier {
 
   Future<void> signOut() => _client.auth.signOut();
 
+  // --- Password reset -------------------------------------------------------
+
+  /// Sends a password-reset email. Supabase emails a link/OTP the user can use
+  /// to set a new password. Deep-link redirect is handled by the app scheme.
+  Future<void> sendPasswordReset(String email) async {
+    try {
+      await _client.auth.resetPasswordForEmail(
+        email.trim().toLowerCase(),
+        redirectTo: 'com.paisatrack.paisatrack://reset-password',
+      );
+    } on AuthApiException catch (e) {
+      throw AuthException(_prettyAuthError(e.message));
+    } catch (e) {
+      debugPrint('sendPasswordReset error: $e');
+      throw AuthException('Could not send the reset email. Try again.');
+    }
+  }
+
+  /// Verifies a recovery OTP (the 6-digit code from the reset email) and, on
+  /// success, the session is elevated so [updatePassword] can be called.
+  Future<void> verifyRecoveryOtp({
+    required String email,
+    required String code,
+  }) async {
+    try {
+      await _client.auth.verifyOTP(
+        email: email.trim().toLowerCase(),
+        token: code.trim(),
+        type: OtpType.recovery,
+      );
+    } on AuthApiException catch (e) {
+      throw AuthException(_prettyAuthError(e.message));
+    } catch (e) {
+      debugPrint('verifyRecoveryOtp error: $e');
+      throw AuthException('Invalid or expired code.');
+    }
+  }
+
+  /// Sets a new password for the currently-recovering session.
+  Future<void> updatePassword(String newPassword) async {
+    try {
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
+    } on AuthApiException catch (e) {
+      throw AuthException(_prettyAuthError(e.message));
+    } catch (e) {
+      debugPrint('updatePassword error: $e');
+      throw AuthException('Could not update password. Try again.');
+    }
+  }
+
   // --- Helpers --------------------------------------------------------------
 
   void _throwIfFunctionError(FunctionResponse res) {
