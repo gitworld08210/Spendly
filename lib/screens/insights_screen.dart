@@ -23,7 +23,7 @@ class InsightsScreen extends StatefulWidget {
 }
 
 class _InsightsScreenState extends State<InsightsScreen> {
-  List<AiTip>? _aiTips;
+  AiResult? _aiResult;
   bool _aiLoading = false;
   bool _aiRequested = false;
 
@@ -32,11 +32,11 @@ class _InsightsScreenState extends State<InsightsScreen> {
       _aiLoading = true;
       _aiRequested = true;
     });
-    final tips = await AiInsightsService.instance
+    final result = await AiInsightsService.instance
         .generate(TransactionRepository.instance.all);
     if (mounted) {
       setState(() {
-        _aiTips = tips;
+        _aiResult = result;
         _aiLoading = false;
       });
     }
@@ -74,7 +74,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
               _AiCoachSection(
                 loading: _aiLoading,
                 requested: _aiRequested,
-                tips: _aiTips,
+                result: _aiResult,
                 onAsk: _askCoach,
               ),
               ...visible.map((i) => Padding(
@@ -100,14 +100,34 @@ class _AiCoachSection extends StatelessWidget {
   const _AiCoachSection({
     required this.loading,
     required this.requested,
-    required this.tips,
+    required this.result,
     required this.onAsk,
   });
 
   final bool loading;
   final bool requested;
-  final List<AiTip>? tips;
+  final AiResult? result;
   final VoidCallback onAsk;
+
+  String? get _statusMessage {
+    final r = result;
+    if (r == null) return null;
+    switch (r.status) {
+      case AiStatus.ok:
+        return null;
+      case AiStatus.empty:
+        return 'The coach had no new tips right now — your spending looks '
+            'steady. Check back after a few more transactions.';
+      case AiStatus.notEnoughData:
+        return 'Add a few more transactions this month and the coach can give '
+            'you personalized tips.';
+      case AiStatus.notConfigured:
+        return 'AI coaching isn\'t switched on yet. Your rule-based insights '
+            'are below.';
+      case AiStatus.error:
+        return 'Couldn\'t reach the coach just now. Please try again in a moment.';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -164,17 +184,17 @@ class _AiCoachSection extends StatelessWidget {
                 ],
               ),
             ),
-          if (!loading && tips != null && tips!.isEmpty && requested)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
+          if (!loading && _statusMessage != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                'AI coaching isn\'t available yet. Your rule-based insights are '
-                'below.',
-                style: TextStyle(color: AppColors.textOnDarkMuted, fontSize: 13),
+                _statusMessage!,
+                style: const TextStyle(
+                    color: AppColors.textOnDarkMuted, fontSize: 13, height: 1.4),
               ),
             ),
-          if (!loading && tips != null && tips!.isNotEmpty)
-            ...tips!.map((t) => Padding(
+          if (!loading && result != null && result!.tips.isNotEmpty)
+            ...result!.tips.map((t) => Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,

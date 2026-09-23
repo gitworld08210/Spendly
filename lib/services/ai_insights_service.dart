@@ -28,9 +28,19 @@ class AiTip {
       );
 }
 
+/// Outcome of an AI request, so the UI can show a precise message.
+enum AiStatus { ok, empty, notEnoughData, notConfigured, error }
+
+@immutable
+class AiResult {
+  const AiResult({required this.status, required this.tips});
+  final AiStatus status;
+  final List<AiTip> tips;
+}
+
 /// Calls the `ai-insights` Edge Function with an aggregated spending summary
 /// and returns AI-written tips. Only non-identifying aggregates are sent; the
-/// model/key live server-side. Returns null when AI isn't configured yet.
+/// model/key live server-side.
 class AiInsightsService {
   AiInsightsService._();
   static final AiInsightsService instance = AiInsightsService._();
@@ -45,29 +55,41 @@ class AiInsightsService {
   }
 
   /// Builds the summary from transactions and asks the AI for tips.
-  /// Returns an empty list if AI is unconfigured or on error.
-  Future<List<AiTip>> generate(List<Transaction> txns, {DateTime? now}) async {
+  /// Returns an [AiResult] with a status so the UI can always show a clear
+  /// message (never a blank screen).
+  Future<AiResult> generate(List<Transaction> txns, {DateTime? now}) async {
     final client = _client;
-    if (client == null || client.auth.currentUser == null) return const [];
+    if (client == null || client.auth.currentUser == null) {
+      return const AiResult(status: AiStatus.error, tips: []);
+    }
 
     final ref = now ?? DateTime.now();
     final summary = _buildSummary(txns, ref);
-    if (summary == null) return const []; // not enough data
+    if (summary == null) {
+      return const AiResult(status: AiStatus.notEnoughData, tips: []);
+    }
 
     try {
       final res = await client.functions.invoke('ai-insights', body: summary);
       final data = res.data;
+      if (data is Map && data['configured'] == false) {
+        return const AiResult(status: AiStatus.notConfigured, tips: []);
+      }
       if (data is Map && data['tips'] is List) {
-        return (data['tips'] as List)
+        final tips = (data['tips'] as List)
             .whereType<Map>()
             .map((m) => AiTip.fromJson(Map<String, dynamic>.from(m)))
             .where((t) => t.title.isNotEmpty)
             .toList();
+        return AiResult(
+          status: tips.isEmpty ? AiStatus.empty : AiStatus.ok,
+          tips: tips,
+        );
       }
     } catch (e) {
       debugPrint('AiInsightsService.generate failed: $e');
     }
-    return const [];
+    return const AiResult(status: AiStatus.error, tips: []);
   }
 
   Map<String, dynamic>? _buildSummary(List<Transaction> txns, DateTime ref) {
